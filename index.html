@@ -1,0 +1,1137 @@
+<html onclick="document.documentElement.requestFullscreen()">
+
+  <audio id="audio" src="./stray_22 - Rikonium.mp3"></audio>
+
+<!-- 
+
+     wirtualizowanie
+
+     virtualization 
+
+     
+
+     to naj lepszy sposób aby gra działa 
+
+     płynnie
+
+-->
+
+<!--
+
+silnik top down do dopracowania
+
+Silnik Kolizji , Wirtualizacja , Kafelki
+
+Unlicense 
+
+reszta
+
+Licence MiT 
+
+-->
+
+<title></title>
+
+<div class="darkness">
+
+  
+
+</div>
+
+<div id="viewport">
+
+  <div class="player">
+
+  </div>
+
+  <div id="content"></div>
+
+</div>
+
+	<div class="joystick">	  <div class="stick"></div>
+
+  </div>
+
+	  <p id="cns"><p id="fps"></p>
+
+	  <p id="console"></p></p>
+
+<style>
+
+#cns{
+
+  position :absolute ;
+
+  top :0;
+
+  left :0;
+
+  z-index :5;
+
+}
+
+.darkness{
+
+  position :absolute ;
+
+  width: 100vw;
+
+  background-image : radial-gradient(circle,#00000026 20%,#000000C9 40%);
+
+  height: 100vh;
+
+  z-index :1;
+
+ left: 0;
+
+}
+
+#woter {
+
+  position: absolute;
+
+  width: 150vw;
+
+  
+
+  background-image: radial-gradient(circle, #00000026 20%, #000000D1 50%);
+
+  height: 100vh;
+
+  z-index: 1;
+
+  animation :2s d infinite;
+
+}
+
+@keyframes d{
+
+  0%{
+
+    rotate: 20deg;
+
+    opacity :0.1;
+
+  }
+
+  100%{
+
+    rotate: 30deg ;
+
+    opacity :0.01;
+
+  }
+
+}
+
+#console {
+
+}
+
+.player {
+
+  position :absolute ;
+
+  z-index :3;
+
+  
+
+  
+
+  width: 20px;
+
+  background: #2D2D2D;
+
+  height: 20px;
+
+  display :flex ;
+
+  justify-content :center ;
+
+  text-align: center ;
+
+  align-items: center ;
+
+}
+
+body{
+
+  position :fixed ;
+
+  background :black ;
+
+  color: #FFFFFF ;
+
+}
+
+#fps{
+
+}
+
+		.joystick {
+
+  position: fixed ;
+
+  z-index :2;
+
+  bottom :60px;
+
+  left:50px;
+
+  width: 100px;
+
+  height: 100px;
+
+  border-radius: 50%;
+
+  background-color: #978A8A0F;
+
+}
+
+.stick {
+
+  position: absolute;
+
+  width: 50px;
+
+  height: 50px;
+
+  top: 25px;
+
+  left: 25px;
+
+  border-radius: 50%;
+
+  background-color: #C7C7C729;
+
+}
+
+#viewport {
+
+  width: 400px;
+
+  height: 300px;
+
+  overflow: auto;
+
+  transform: translate(-50%, -50%);
+
+  top:50vh;
+
+  left:50vw;
+
+  position :absolute ;
+
+}
+
+#content {
+
+  position: relative;
+
+  
+
+}
+
+.tile {
+
+  position: absolute;
+
+  width: 32px;
+
+  height: 32px;
+
+  background-color: #3B3B3B;
+
+  border: 1px solid   #151515;
+
+  box-sizing: border-box;
+
+}
+
+.tile4 {
+
+  position: absolute;
+
+  width: 32px;
+
+  height: 32px;
+
+  background-color: #181F16;
+
+  border: 1px solid #181F16;
+
+  box-sizing: border-box;
+
+}
+
+.tile2 {
+
+  position: absolute;
+
+  width: 32px;
+
+  height: 32px;
+
+  background-color: #121212;
+
+  border: 1px solid #121212;
+
+  box-sizing: border-box;
+
+}
+
+.tile3 {
+
+  position: absolute;
+
+  z-index :1;
+
+  width: 22px;
+
+  height: 22px;
+
+  background-color: #000000;
+
+  border: 1px solid #000000;
+
+  box-sizing: border-box;
+
+}
+
+</style>
+
+<script>
+
+const viewport = document.getElementById('viewport');
+
+const content = document.getElementById('content');
+
+const tileSize = 32; // Rozmiar pojedynczego kafelka
+
+const viewportWidth = viewport.clientWidth;
+
+const viewportHeight = viewport.clientHeight;
+
+const numTilesX = 99999999^99999 // Liczba kafelków w osi X
+
+const numTilesY = 99999999^99999; // Liczba kafelków w osi Y
+
+const contentWidth = numTilesX * tileSize;
+
+const contentHeight = numTilesY * tileSize;
+
+content.style.width = contentWidth + 'px';
+
+content.style.height = contentHeight + 'px';
+
+const numVisibleTilesX = Math.ceil(viewportWidth / tileSize);
+
+const numVisibleTilesY = Math.ceil(viewportHeight / tileSize);
+
+let startTileX = 0; // Indeks początkowego kafelka w osi X
+
+let startTileY = 0; // Indeks początkowego kafelka w osi Y
+
+const tileCache = {}; // Obiekt przechowujący kafelki w pamięci podręcznej
+
+function updateViewport() {
+
+  const scrollLeft = viewport.scrollLeft;
+
+  const scrollTop = viewport.scrollTop;
+
+  startTileX = Math.floor(scrollLeft / tileSize);
+
+  startTileY = Math.floor(scrollTop / tileSize);
+
+  const endTileX = startTileX + numVisibleTilesX;
+
+  const endTileY = startTileY + numVisibleTilesY;
+
+  // Usuń poprzednie kafelki spoza widoku
+
+  const visibleTiles = document.querySelectorAll('.tile, .tile2 , .tile3, .tile4');
+
+  for (let i = 0; i < visibleTiles.length; i++) {
+
+    const tile = visibleTiles[i];
+
+    const { x, y } = tile.dataset;
+
+    if (x < startTileX || x >= endTileX || y < startTileY || y >= endTileY) {
+
+      tile.remove();
+
+      
+
+    }
+
+  }
+
+  // Renderuj tylko widoczne kafelki, jeśli nie są już obecne
+
+  for (let x = startTileX; x < endTileX; x++) {
+
+    for (let y = startTileY; y < endTileY; y++) {
+
+      const tileKey = `${x}-${y}`;
+
+setTimeout(constructn, 2000)
+
+      if (!tileCache[tileKey] || !tileCache[tileKey].generated) {
+
+        const tile = document.createElement('div');
+
+        const tile2p = document.createElement('div');
+
+        if(Math.floor(Math.random()*4)==1){
+
+        tile.className =  'tile';
+
+        }else if (Math.floor(Math.random() * 3 )== 2) {
+
+          tile.className = 'tile4';
+
+        }else if(Math.floor(Math.random()*100)==1){
+
+          //monster
+
+          tile2p.className =  'tile3';
+
+          tile2p.timetorm = 0.9; 
+
+          tile2p.Timeout = function() {
+
+               this.timetorm+=1
+
+               if(this.timetorm>90){
+
+               this.remove()
+
+               }
+
+          }
+
+          tile2p.move = function() {
+
+            // funkcja przesuwająca cząstkę
+
+            var posX = parseFloat(this.style.left);
+
+            var posY = parseFloat(this.style.top);
+
+            
+
+          
+
+               posX += thix * tileSize 
+
+               posY += thiy * tileSize
+
+            this.style.left = posX + "px";
+
+            this.style.top = posY + "px";
+
+          }
+
+          tile2p.style.left += x * tileSize + 'px';
+
+          tile2p.style.top += y * tileSize + 'px';
+
+          tile.className =  'tile2';
+
+        }else {
+
+          tile.className =  'tile2';
+
+        }
+
+        tile.dataset.x = x;
+
+        tile.dataset.y = y;
+
+        tile.style.left = x * tileSize + 'px';
+
+        tile.style.top = y * tileSize + 'px';
+
+        
+
+        content.appendChild(tile);
+
+content.appendChild(tile2p);
+
+        tileCache[tileKey] = {
+
+          element: tile,
+
+          generated: true,
+
+        };
+
+      }else {
+
+        content.appendChild(tileCache[tileKey].element);
+
+        constructn()
+
+      }
+
+    }
+
+  }
+
+}
+
+// Obsługa zdar
+
+// Obsługa zdarzeń przewijania
+
+viewport.addEventListener('scroll', updateViewport);
+
+// Inicjalizacja
+
+updateViewport();
+
+function scrollPage() {
+
+  viewport.scrollBy(0, 0); // Przesuń stronę o 0 pikseli w dół
+
+}
+
+setInterval(scrollPage, 1);
+
+</script>
+
+<script>
+
+  var fps = document.getElementById("fps");
+
+var startTime = Date.now();
+
+var frame = 0;
+
+function tick() {
+
+  var time = Date.now();
+
+  frame++;
+
+  if (time - startTime > 1000) {
+
+    fps.innerHTML = (frame / ((time - startTime) / 1000)).toFixed(1);
+
+    startTime = time;
+
+    frame = 0;
+
+  }
+
+  window.requestAnimationFrame(tick);
+
+}
+
+tick();
+
+</script>
+
+<script>
+
+    var stick = document.querySelector('.stick');
+
+    var joystick = document.querySelector('.joystick');
+
+    var joystickRect = joystick.getBoundingClientRect();
+
+  
+
+    let isDragging = false;
+
+    let joystickX = 0;
+
+    let joystickY = 0;
+
+    var x=0
+
+    var y=0
+
+  function movright(){
+
+    movePlayer(-0.06,0)
+
+  }
+
+  function movleft() {
+
+    movePlayer(0.06,0)
+
+  }
+
+  function movup() {
+
+movePlayer(0,-0.06)
+
+  }
+
+  function movdown() {
+
+    movePlayer(0,0.06)
+
+  }
+
+    function updateJoystick(event) {
+
+      let x, y;
+
+      if (event.type === 'touchmove') {
+
+        x = event.touches[0].clientX - joystickRect.left - joystickRect.width / 2;
+
+        y = event.touches[0].clientY - joystickRect.top - joystickRect.height / 2;
+
+      } else {
+
+        x = event.clientX - joystickRect.left - joystickRect.width / 2;
+
+        y = event.clientY - joystickRect.top - joystickRect.height / 2;
+
+      }
+
+      if (x > 30) {
+
+        movleft()
+
+      }
+
+      if (x < 30) {
+
+        movright()
+
+      }
+
+  
+
+      const distance = Math.sqrt(x * x + y * y);
+
+      const angle = Math.atan2(y, x);
+
+      const maxDistance = joystickRect.width / 2 - stick.getBoundingClientRect().width / 2;
+
+      if (y < -40 && distance > 40) {
+
+        movup()
+
+      }
+
+      if (y > 40 && distance > 40) {
+
+        movdown()
+
+      }
+
+      if (distance > maxDistance) {
+
+        x = Math.cos(angle) * maxDistance;
+
+        y = Math.sin(angle) * maxDistance;
+
+      }
+
+  
+
+      stick.style.transform = `translate(${x}px, ${y}px)`;
+
+  
+
+      
+
+    }
+
+  
+
+    stick.addEventListener('mousedown', event => {
+
+      isDragging = true;
+
+      updateJoystick(event);
+
+    });
+
+  
+
+    joystick.addEventListener('mousemove', event => {
+
+      if (isDragging) {
+
+        updateJoystick(event);
+
+      }
+
+    });
+
+  
+
+    joystick .addEventListener('mouseup', () => {
+
+      isDragging = false;
+
+      stick.style.transform = 'translate(0px, 0px)';
+
+    });
+
+    
+
+var toonce=0
+
+    stick.addEventListener('touchstart', event => {
+
+      event.preventDefault();
+
+      isDragging = true;
+
+      if(toonce===0){
+
+      aud = document.getElementById('audio')
+
+      aud.play()
+
+      aud.loop = true;
+
+      if(aud.currentTime >0){
+
+      toonce=1
+
+      }
+
+      aud.currentTime = 0;
+
+      }
+
+      updateJoystick(event);
+
+    });
+
+  
+
+    joystick.addEventListener('touchmove', event => {
+
+      event.preventDefault();
+
+      if (isDragging) {
+
+        updateJoystick(event);
+
+      }
+
+    });
+
+  
+
+    joystick .addEventListener('touchend', () => {
+
+      isDragging = false;
+
+      stick.style.transform = 'translate(0px, 0px)';
+
+    });
+
+</script>
+
+<script>
+
+const player = document.querySelector('.player');
+
+var tileSize2 = 40;
+
+let playerX = 1000;
+
+let playerY =1000;
+
+// Przewiń stronę do określonej pozycji
+
+viewport.scrollTo( 39800, 39800) 
+
+var thix=0
+
+var thiy=0
+
+function movePlayer(dx, dy) {
+
+  playerX += dx;
+
+  thiy=dy;
+
+  thix=dx;
+
+  playerY += dy;
+
+  collision(dx, dy)
+
+  document.getElementById('console').innerHTML ='x:'+ Math.floor(playerX) +'y:'+Math.floor(playerY) 
+
+  
+
+  player.style.left = playerX * tileSize2 + 'px';
+
+  player.style.top = playerY * tileSize2 + 'px';
+
+  
+
+}
+
+setTimeout(move, 200)
+
+function move(){
+
+checkIfElementExited(player, viewport)
+
+setTimeout(move, 100)
+
+}
+
+function checkIfElementExited(player, viewport) {
+
+  var elementRect = player.getBoundingClientRect();
+
+  var containerRect = viewport.getBoundingClientRect();
+
+  var elementTop = elementRect.top;
+
+  var elementBottom = elementRect.bottom;
+
+  var elementLeft = elementRect.left;
+
+  var elementRight = elementRect.right;
+
+  var containerTop = containerRect.top;
+
+  var containerBottom = containerRect.bottom;
+
+  var containerLeft = containerRect.left;
+
+  var containerRight = containerRect.right;
+
+  var scrollLeft = 0;
+
+  var scrollTop = 0;
+
+  var scrollBot =0
+
+  var scrollRight=0
+
+  if (elementTop < containerTop + 50) {
+
+    scrollTop = elementTop - containerTop;
+
+  } else if (elementBottom > containerBottom-50) {
+
+    scrollBot = elementBottom - containerBottom;
+
+  }
+
+  if (elementLeft < containerLeft+50) {
+
+    scrollLeft = elementLeft - containerLeft;
+
+  } else if (elementRight > containerRight-50) {
+
+    scrollRight = elementRight - containerRight;
+
+  }
+
+  if ( scrollLeft !== 0) {
+
+    viewport.scrollTo({
+
+      left: playerX*39.7,
+
+      top: playerY*39.9,
+
+      behavior: 'smooth'
+
+    });
+
+  }
+
+  if (scrollRight !== 0) {
+
+    viewport.scrollTo({
+
+      left: playerX * 39.9,
+
+      top: playerY * 39.9,
+
+      behavior: 'smooth'
+
+  });
+
+  }
+
+    if (scrollTop !== 0) {
+
+    viewport.scrollTo({
+
+      left: playerX*39.8,
+
+      top: playerY*39.78,
+
+      behavior: 'smooth'
+
+    });
+
+    
+
+  }
+
+    if (scrollBot !== 0) {
+
+      viewport.scrollTo({
+
+        left: playerX * 39.8,
+
+        top: playerY * 39.96,
+
+        behavior: 'smooth'
+
+      });
+
+  
+
+    }
+
+}
+
+// Przykład użycia
+
+// Przykład użycia
+
+var tiles = document.querySelectorAll('.tile');
+
+  function constructn(){
+
+     tiles = document.querySelectorAll('.tile');
+
+    
+
+  }
+
+var topside=0
+
+function collision(dx, dy) {
+
+  for (let tile of tiles) {
+
+    const rect1 = player.getBoundingClientRect();
+
+    const rect2 = tile.getBoundingClientRect();
+
+    const wallThickness =2;
+
+    if (rect1.right > rect2.left - wallThickness && rect1.left < rect2.left && rect1.bottom > rect2.top && rect1.top < rect2.bottom) {
+
+    
+
+    
+
+    
+
+      // blokuje poruszanie x
+
+    
+
+      playerX -= 0.06;
+
+    
+
+    
+
+      player.style.left = playerX * tileSize + 'px';
+
+      player.style.top = playerY * tileSize + 'px';
+
+    
+
+      collide = 1
+
+      return;
+
+    }
+
+if (rect1.bottom > rect2.top + 5 &&
+
+      rect1.top < rect2.bottom - 10 &&
+
+      rect1.right > rect2.left + 5 &&
+
+      rect1.left < rect2.right - 5) {
+
+        console.log("oh")
+
+topside=0;
+
+playerY -=0.1;
+
+playerX -=0.3;
+
+} if (rect1.left < rect2.right + wallThickness && rect1.right > rect2.right && rect1.bottom > rect2.top + wallThickness && rect1.top < rect2.bottom - wallThickness) {
+
+    
+
+    
+
+      // blokuje poruszanie x
+
+      
+
+      playerX += 0.06;
+
+      
+
+      player.style.left = playerX * tileSize + 'px';
+
+      player.style.top = playerY * tileSize + 'px';
+
+    
+
+      collide = 1
+
+      return;
+
+} 
+
+    
+
+    if (rect1.top < rect2.bottom + 8 && rect1.bottom > rect2.bottom + 2 && rect1.right > rect2.left&& rect1.left < rect2.right ) {
+
+    
+
+      playerY +=  0.06;
+
+      // blokuje poruszanie x
+
+      spgrav = 0
+
+     
+
+      player.style.left = playerX * tileSize + 'px';
+
+      player.style.top = playerY * tileSize + 'px';
+
+    
+
+      collide = 1
+
+      return;
+
+    }if (rect1.bottom > rect2.top - wallThickness && rect1.top < rect2.top && rect1.right > rect2.left + wallThickness && rect1.left < rect2.right - wallThickness) {
+
+      
+
+          playerY -=   0.06;
+
+          console.log("ok")
+
+          // blokuje poruszanie x
+
+          spgrav = 0
+
+          
+
+          player.style.left = playerX * tileSize + 'px';
+
+          player.style.top = playerY * tileSize + 'px';
+
+      
+
+          collide = 1
+
+          return;
+
+        }else{
+
+          
+
+        }
+
+        
+
+      if (player.x < rect2.x && player.y + 55 > rect2.y && player.y < rect2.y + 55) {
+
+        rect2.x = player.x - 50;
+
+      }
+
+        if (rect1.bottom + 5 >= rect2.top &&
+
+          rect1.top < rect2.bottom &&
+
+          rect1.right > rect2.left &&
+
+          rect1.left < rect2.right) {
+
+          collide = 1;
+
+      
+
+          cav = 0
+
+          return;
+
+        } else {
+
+          collide = 0;
+
+      
+
+        }
+
+  }
+
+}
+
+   setTimeout(loop,200)
+
+      function anim() {
+
+        var tile2ps = document.getElementsByClassName("tile3");
+
+        for (var i = 0; i < tile2ps.length; i++) {
+
+          tile2ps[i].move();
+
+          
+
+            tile2ps[i].Timeout()
+
+          
+
+        }
+
+      }
+
+      function loop(){
+
+        if(movePlayer(0,0)){
+
+          
+
+        }else {
+
+          thix = 0
+
+          thiy = 0
+
+        }
+
+        stick = document.querySelector('.stick');
+
+        joystick = document.querySelector('.joystick');
+
+        joystickRect = joystick.getBoundingClientRect();
+
+      requestAnimationFrame(anim)
+
+      requestAnimationFrame(loop)
+
+     } 
+
+</script> 
